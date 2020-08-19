@@ -15,7 +15,7 @@ void setup() {
   Serial.println("Starting AMS Test");
 
   Bluefruit.begin();
-  Bluefruit.setName("Bluefruit52 Central");
+  Bluefruit.setName("AMS Test");
   Bluefruit.Periph.setConnectCallback(connect_callback);
 
   // Initialize the service
@@ -70,6 +70,25 @@ void connect_callback(uint16_t conn_handle) {
   } else {
     Serial.println("Characteristic not discovered");
   }
+
+  Bluefruit.requestPairing(conn_handle);
+  if(Bluefruit.connPaired(conn_handle)){
+    Serial.println("Pairing successful");
+  } else {
+    Serial.println("Pairing failed");
+  }
+
+  // enable notifications on the characteristic
+  if(characteristic.enableNotify()){
+    Serial.println("Notifications enabled");
+  } else {
+    Serial.println("Notifications NOT enabled");
+  }
+
+  Serial.println("Writing to characteristic");
+  // EntityIDTrack TrackAttributeIDTitle
+  uint8_t command[] = {2, 2};
+  characteristic.write_resp(&command, sizeof(command));
   
 }
 
