@@ -10,6 +10,8 @@ const uint8_t UUID_CHARACTISTIC[] = {0x02, 0xC1, 0x96, 0xBA, 0x92, 0xBB, 0x0C, 0
 BLEClientService        service(UUID_SERVICE);
 BLEClientCharacteristic characteristic(UUID_CHARACTISTIC);
 
+char buffer[128];
+
 void setup() {
   Serial.begin(115200);
   Serial.println("Starting AMS Test");
@@ -102,7 +104,27 @@ void connect_callback(uint16_t conn_handle) {
 void update_notify_callback(BLEClientCharacteristic* chr, uint8_t* data, uint16_t len) {
   Serial.println("Got a notification");
   Serial.print("Length:"); Serial.println(len);
+/*
+The format of GATT notifications delivered by the MS is shown below:
+
+Byte  Value
+-----------------------
+1     EntityID
+2     AttributeID
+3     EntityUpdateFlags
+4...  Value
+
+A GATT notification delivered through the Entity Update characteristic contains the following information:
+
+EntityID: The entity to which the subsequent attribute corresponds.
+AttributeID: The attribute whose value is being sent in the notification.
+EntityUpdateFlags: A bitmask whose set bits give the MR specific information about the notification. For example, an MR could be informed that the data had to be truncated in order to fit into the GATT notification.
+Value: A string which corresponds to the value associated with the given attribute.
+*/
   //  Serial.print("Data:  "); Serial.println(data);
+  Serial.print("EntityID:    "); Serial.println(data[0]);
+  Serial.print("AttributeID: "); Serial.println(data[1]);
+  Serial.print("Truncated:   "); Serial.println(data[2]);
 
 }
 
