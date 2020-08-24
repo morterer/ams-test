@@ -1,13 +1,16 @@
 #include <bluefruit.h>
 
 // Apple Media Service UUID: 89D3502B-0F36-433A-8EF4-C502AD55F8DC
+// Remote Command UUID:      9B3C81D8-57B1-4A8A-B8DF-0E56F7CA51C2 (writeable, notifiable)
 // Entity Update UUID:       2F7CABCE-808D-411F-9A0C-BB92BA96C102 (writeable with response, notifiable)
 
 
 const uint8_t BLEAMS_UUID_SERVICE[] =           {0xDC, 0xF8, 0x55, 0xAD, 0x02, 0xC5, 0xF4, 0x8E, 0x3A, 0x43, 0x36, 0x0F, 0x2B, 0x50, 0xD3, 0x89};
+const uint8_t BLEAMS_UUID_CHR_REMOTE_CMD[] =    {0xC2, 0x51, 0xCA, 0xF7, 0x56, 0x0E, 0xDF, 0xB8, 0x8A, 0x4A, 0xB1, 0x57, 0xD8, 0x81, 0x3C, 0x9B};
 const uint8_t BLEAMS_UUID_CHR_ENTITY_UPDATE[] = {0x02, 0xC1, 0x96, 0xBA, 0x92, 0xBB, 0x0C, 0x9A, 0x1F, 0x41, 0x8D, 0x80, 0xCE, 0xAB, 0x7C, 0x2F};
 
 BLEClientService        appleMediaService(BLEAMS_UUID_SERVICE);
+BLEClientCharacteristic remoteCmdChrt(BLEAMS_UUID_CHR_REMOTE_CMD);
 BLEClientCharacteristic entityUpdateChrt(BLEAMS_UUID_CHR_ENTITY_UPDATE);
 
 char buffer[128];
@@ -23,6 +26,10 @@ void setup() {
 
   // Initialize the appleMediaService
   appleMediaService.begin();
+
+  // Initialize the remoteCmdChrt
+  remoteCmdChrt.setNotifyCallback(remote_command_callback);
+  remoteCmdChrt.begin();
 
   // Initialize the entityUpdateChrt
   entityUpdateChrt.setNotifyCallback(update_notify_callback);
@@ -66,12 +73,20 @@ void connect_callback(uint16_t conn_handle) {
     Serial.println("Service not discovered");
   }
 
-  // discover entityUpdateChrt
+  // discover Remote Command characteristic
+  remoteCmdChrt.discover();
+  if (remoteCmdChrt.discovered()) {
+    Serial.println("Remote Command characteristic discovered");
+  } else {
+    Serial.println("Remote Command characteristic NOT discovered");
+  }
+
+  // discover Entity Update characteristic
   entityUpdateChrt.discover();
   if (entityUpdateChrt.discovered()) {
-    Serial.println("Characteristic discovered");
+    Serial.println("Entity Update characteristic discovered");
   } else {
-    Serial.println("Characteristic not discovered");
+    Serial.println("Entity Update characteristic NOT discovered");
   }
 
   Bluefruit.requestPairing(conn_handle);
@@ -81,16 +96,24 @@ void connect_callback(uint16_t conn_handle) {
     Serial.println("Pairing failed");
   }
 
-  // enable notifications on the entityUpdateChrt
-  if (entityUpdateChrt.enableNotify()) {
-    Serial.println("Notifications enabled");
+  // enable notifications on the Remote Command characteristic
+  // TODO
+  if (remoteCmdChrt.enableNotify()) {
+    Serial.println("Remote Command notifications enabled");
   } else {
-    Serial.println("Notifications NOT enabled");
+    Serial.println("Remote Command notifications NOT enabled");
+  }
+
+  // enable notifications on the Entity Update characteristic
+  if (entityUpdateChrt.enableNotify()) {
+    Serial.println("Entity Update notifications enabled");
+  } else {
+    Serial.println("Entity Update notifications NOT enabled");
   }
 
   Serial.println("Writing to entityUpdateChrt");
   // EntityIDTrack TrackAttributeIDTitle
-  uint8_t command[] = {2, 0,2};
+  uint8_t command[] = {2, 0, 2};
   entityUpdateChrt.write_resp(&command, sizeof(command));
 
 }
@@ -103,7 +126,7 @@ void connect_callback(uint16_t conn_handle) {
    @param len   Length of received data
 */
 void update_notify_callback(BLEClientCharacteristic* chr, uint8_t* data, uint16_t len) {
-  Serial.println("Got a notification");
+  Serial.println("Got a entity update notification");
   Serial.print("Length:"); Serial.println(len);
   /*
     The format of GATT notifications delivered by the MS is shown below:
@@ -126,14 +149,52 @@ void update_notify_callback(BLEClientCharacteristic* chr, uint8_t* data, uint16_
   Serial.print("EntityID:    "); Serial.println(data[0]);
   Serial.print("AttributeID: "); Serial.println(data[1]);
   Serial.print("Truncated:   "); Serial.println(data[2]);
-  memcpy(buffer, data+3, len-3);
+  memcpy(buffer, data + 3, len - 3);
   Serial.println(buffer);
-//  for (int i = 3; i < len; i++) {
-//    Serial.print((char)data[i]);
-//  }
-//  Serial.println();
+  //  for (int i = 3; i < len; i++) {
+  //    Serial.print((char)data[i]);
+  //  }
+  //  Serial.println();
 
-  
+
+}
+/*
+  When the list of commands supported by the media player changes, the MS generates a notification on the Remote Command characteristic containing a list of the currently supported commands, using the fomat shown below:
+
+    Byte  Value
+    -----------------------
+    1     RemoteCommandID 1
+    2     RemoteCommandID 2
+    ...   other RemoteCommandIDs
+
+
+    Table A-1  RemoteCommandID values
+    Name                              Value
+    ---------------------------------------
+    RemoteCommandIDPlay                 0
+    RemoteCommandIDPause                1
+    RemoteCommandIDTogglePlayPause      2
+    RemoteCommandIDNextTrack            3
+    RemoteCommandIDPreviousTrack        4
+    RemoteCommandIDVolumeUp             5
+    RemoteCommandIDVolumeDown           6
+    RemoteCommandIDAdvanceRepeatMode    7
+    RemoteCommandIDAdvanceShuffleMode   8
+    RemoteCommandIDSkipForward          9
+    RemoteCommandIDSkipBackward        10
+    RemoteCommandIDLikeTrack           11
+    RemoteCommandIDDislikeTrack        12
+    RemoteCommandIDBookmarkTrack       13
+    Reserved                           14-255
+*/
+void remote_command_callback(BLEClientCharacteristic* chr, uint8_t* data, uint16_t len) {
+  Serial.println("Got a remote command notification");
+  Serial.print("Length:"); Serial.println(len);
+  Serial.println("Currently supported commands:");
+  for (int i = 0; i < len; i++) {
+    Serial.println(data[i]);
+  }
+  Serial.println();
 }
 
 void loop() {
