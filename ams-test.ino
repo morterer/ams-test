@@ -16,6 +16,7 @@ void setup() {
   Serial.begin(115200);
   Serial.println("Starting AMS Test");
 
+  Bluefruit.configPrphBandwidth(BANDWIDTH_MAX);
   Bluefruit.begin();
   Bluefruit.setName("AMS Test");
   Bluefruit.Periph.setConnectCallback(connect_callback);
@@ -89,7 +90,7 @@ void connect_callback(uint16_t conn_handle) {
 
   Serial.println("Writing to characteristic");
   // EntityIDTrack TrackAttributeIDTitle
-  uint8_t command[] = {2, 2};
+  uint8_t command[] = {2, 0,2};
   characteristic.write_resp(&command, sizeof(command));
 
 }
