@@ -4,11 +4,11 @@
 // Entity Update UUID:       2F7CABCE-808D-411F-9A0C-BB92BA96C102 (writeable with response, notifiable)
 
 
-const uint8_t UUID_SERVICE[] =      {0xDC, 0xF8, 0x55, 0xAD, 0x02, 0xC5, 0xF4, 0x8E, 0x3A, 0x43, 0x36, 0x0F, 0x2B, 0x50, 0xD3, 0x89};
-const uint8_t UUID_CHARACTISTIC[] = {0x02, 0xC1, 0x96, 0xBA, 0x92, 0xBB, 0x0C, 0x9A, 0x1F, 0x41, 0x8D, 0x80, 0xCE, 0xAB, 0x7C, 0x2F};
+const uint8_t BLEAMS_UUID_SERVICE[] =           {0xDC, 0xF8, 0x55, 0xAD, 0x02, 0xC5, 0xF4, 0x8E, 0x3A, 0x43, 0x36, 0x0F, 0x2B, 0x50, 0xD3, 0x89};
+const uint8_t BLEAMS_UUID_CHR_ENTITY_UPDATE[] = {0x02, 0xC1, 0x96, 0xBA, 0x92, 0xBB, 0x0C, 0x9A, 0x1F, 0x41, 0x8D, 0x80, 0xCE, 0xAB, 0x7C, 0x2F};
 
-BLEClientService        service(UUID_SERVICE);
-BLEClientCharacteristic characteristic(UUID_CHARACTISTIC);
+BLEClientService        appleMediaService(BLEAMS_UUID_SERVICE);
+BLEClientCharacteristic entityUpdateChrt(BLEAMS_UUID_CHR_ENTITY_UPDATE);
 
 char buffer[128];
 
@@ -21,12 +21,12 @@ void setup() {
   Bluefruit.setName("AMS Test");
   Bluefruit.Periph.setConnectCallback(connect_callback);
 
-  // Initialize the service
-  service.begin();
+  // Initialize the appleMediaService
+  appleMediaService.begin();
 
-  // Initialize the characteristic
-  characteristic.setNotifyCallback(update_notify_callback);
-  characteristic.begin();
+  // Initialize the entityUpdateChrt
+  entityUpdateChrt.setNotifyCallback(update_notify_callback);
+  entityUpdateChrt.begin();
 
 
   // Advertising packet
@@ -34,7 +34,7 @@ void setup() {
   Bluefruit.Advertising.addTxPower();
 
   // Include ANCS 128-bit uuid
-  Bluefruit.Advertising.addService(service);
+  Bluefruit.Advertising.addService(appleMediaService);
 
   // Secondary Scan Response packet (optional)
   // Since there is no room for 'Name' in Advertising packet
@@ -58,17 +58,17 @@ void setup() {
 void connect_callback(uint16_t conn_handle) {
   Serial.println("Connected...");
 
-  // discover service
-  service.discover(conn_handle);
-  if (service.discovered()) {
+  // discover appleMediaService
+  appleMediaService.discover(conn_handle);
+  if (appleMediaService.discovered()) {
     Serial.println("Service discovered");
   } else {
     Serial.println("Service not discovered");
   }
 
-  // discover characteristic
-  characteristic.discover();
-  if (characteristic.discovered()) {
+  // discover entityUpdateChrt
+  entityUpdateChrt.discover();
+  if (entityUpdateChrt.discovered()) {
     Serial.println("Characteristic discovered");
   } else {
     Serial.println("Characteristic not discovered");
@@ -81,17 +81,17 @@ void connect_callback(uint16_t conn_handle) {
     Serial.println("Pairing failed");
   }
 
-  // enable notifications on the characteristic
-  if (characteristic.enableNotify()) {
+  // enable notifications on the entityUpdateChrt
+  if (entityUpdateChrt.enableNotify()) {
     Serial.println("Notifications enabled");
   } else {
     Serial.println("Notifications NOT enabled");
   }
 
-  Serial.println("Writing to characteristic");
+  Serial.println("Writing to entityUpdateChrt");
   // EntityIDTrack TrackAttributeIDTitle
   uint8_t command[] = {2, 0,2};
-  characteristic.write_resp(&command, sizeof(command));
+  entityUpdateChrt.write_resp(&command, sizeof(command));
 
 }
 
