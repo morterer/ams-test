@@ -199,5 +199,9 @@ void remote_command_callback(BLEClientCharacteristic* chr, uint8_t* data, uint16
 
 void loop() {
   // put your main code here, to run repeatedly:
-
+  if (Serial.available() > 0) {
+    uint8_t readByte = Serial.parseInt();
+    Serial.print("Sending command: "); Serial.println(readByte);
+    remoteCmdChrt.write8_resp(readByte);
+  }
 }
