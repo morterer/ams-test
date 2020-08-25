@@ -40,7 +40,7 @@ void setup() {
   Bluefruit.Advertising.addFlags(BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE);
   Bluefruit.Advertising.addTxPower();
 
-  // Include ANCS 128-bit uuid
+  // Include AMS 128-bit uuid
   Bluefruit.Advertising.addService(appleMediaService);
 
   // Secondary Scan Response packet (optional)
@@ -97,7 +97,6 @@ void connect_callback(uint16_t conn_handle) {
   }
 
   // enable notifications on the Remote Command characteristic
-  // TODO
   if (remoteCmdChrt.enableNotify()) {
     Serial.println("Remote Command notifications enabled");
   } else {
@@ -142,10 +141,11 @@ void update_notify_callback(BLEClientCharacteristic* chr, uint8_t* data, uint16_
 
     EntityID: The entity to which the subsequent attribute corresponds.
     AttributeID: The attribute whose value is being sent in the notification.
-    EntityUpdateFlags: A bitmask whose set bits give the MR specific information about the notification. For example, an MR could be informed that the data had to be truncated in order to fit into the GATT notification.
+    EntityUpdateFlags: A bitmask whose set bits give the MR specific information about the notification.
+    For example, an MR could be informed that the data had to be truncated in order to fit into the GATT notification.
     Value: A string which corresponds to the value associated with the given attribute.
   */
-  //  Serial.print("Data:  "); Serial.println(data);
+
   Serial.print("EntityID:    "); Serial.println(data[0]);
   Serial.print("AttributeID: "); Serial.println(data[1]);
   Serial.print("Truncated:   "); Serial.println(data[2]);
@@ -155,11 +155,11 @@ void update_notify_callback(BLEClientCharacteristic* chr, uint8_t* data, uint16_
   //    Serial.print((char)data[i]);
   //  }
   //  Serial.println();
-
-
 }
 /*
-  When the list of commands supported by the media player changes, the MS generates a notification on the Remote Command characteristic containing a list of the currently supported commands, using the fomat shown below:
+  When the list of commands supported by the media player changes, the MS generates a
+  notification on the Remote Command characteristic containing a list of the currently
+  supported commands, using the fomat shown below:
 
     Byte  Value
     -----------------------
@@ -205,3 +205,9 @@ void loop() {
     remoteCmdChrt.write8_resp(readByte);
   }
 }
+
+// https://blog.moddable.com/blog/ams-client/
+// https://devzone.nordicsemi.com/f/nordic-q-a/42230/apple-media-service
+// https://developer.apple.com/library/archive/documentation/CoreBluetooth/Reference/AppleMediaService_Reference/Specification/Specification.html
+//
+// * There are important differences between write and write_resp
