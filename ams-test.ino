@@ -15,6 +15,19 @@ BLEClientCharacteristic entityUpdateChrt(BLEAMS_UUID_CHR_ENTITY_UPDATE);
 
 char buffer[128];
 
+enum {
+  AMS_ENTITY_ID_PLAYER, // app name, playback data, volume
+  AMS_ENTITY_ID_QUEUE,  // queue info, shuffle, repeat
+  AMS_ENTITY_ID_TRACK   // artist, album, title, length
+};
+
+enum {
+  AMS_TRACK_ATTRIBUTE_ID_ARTIST,   // name of the artist.
+  AMS_TRACK_ATTRIBUTE_ID_ALBUM,    // name of the album.
+  AMS_TRACK_ATTRIBUTE_ID_TITLE,    // title of the track.
+  AMS_TRACK_ATTRIBUTE_ID_DURATION  // total duration of the track in seconds.
+};
+
 void setup() {
   Serial.begin(115200);
   Serial.println("Starting AMS Test");
@@ -112,7 +125,7 @@ void connect_callback(uint16_t conn_handle) {
 
   Serial.println("Writing to entityUpdateChrt");
   // EntityIDTrack TrackAttributeIDTitle
-  uint8_t command[] = {2, 0, 2};
+  uint8_t command[] = {AMS_ENTITY_ID_TRACK, AMS_TRACK_ATTRIBUTE_ID_ARTIST, AMS_TRACK_ATTRIBUTE_ID_TITLE, AMS_TRACK_ATTRIBUTE_ID_DURATION};
   entityUpdateChrt.write_resp(&command, sizeof(command));
 
 }
@@ -149,12 +162,14 @@ void update_notify_callback(BLEClientCharacteristic* chr, uint8_t* data, uint16_
   Serial.print("EntityID:    "); Serial.println(data[0]);
   Serial.print("AttributeID: "); Serial.println(data[1]);
   Serial.print("Truncated:   "); Serial.println(data[2]);
+
+  // clear the buffer before copying in a new value
+  memset(buffer, 0, sizeof(buffer));
+
+  // copy the string payload to the buffer
   memcpy(buffer, data + 3, len - 3);
   Serial.println(buffer);
-  //  for (int i = 3; i < len; i++) {
-  //    Serial.print((char)data[i]);
-  //  }
-  //  Serial.println();
+
 }
 /*
   When the list of commands supported by the media player changes, the MS generates a
