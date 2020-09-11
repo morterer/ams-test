@@ -1,4 +1,8 @@
 #include <bluefruit.h>
+#include <SPI.h>
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
 
 // Apple Media Service UUID: 89D3502B-0F36-433A-8EF4-C502AD55F8DC
 // Remote Command UUID:      9B3C81D8-57B1-4A8A-B8DF-0E56F7CA51C2 (writeable, notifiable)
@@ -13,7 +17,12 @@ BLEClientService        appleMediaService(BLEAMS_UUID_SERVICE);
 BLEClientCharacteristic remoteCmdChrt(BLEAMS_UUID_CHR_REMOTE_CMD);
 BLEClientCharacteristic entityUpdateChrt(BLEAMS_UUID_CHR_ENTITY_UPDATE);
 
-char buffer[128];
+Adafruit_SSD1306 display = Adafruit_SSD1306(128, 32, &Wire);
+
+char artist[128];
+char title[128];
+
+//int  x, minX;
 
 enum {
   AMS_ENTITY_ID_PLAYER, // app name, playback data, volume
@@ -73,6 +82,12 @@ void setup() {
   Bluefruit.Advertising.setInterval(32, 244);    // in unit of 0.625 ms
   Bluefruit.Advertising.setFastTimeout(30);      // number of seconds in fast mode
   Bluefruit.Advertising.start(0);                // 0 = Don't stop advertising after n seconds
+
+  // initialize the display, and configure for white on black text
+  display.begin(SSD1306_SWITCHCAPVCC, 0x3C); // Address 0x3C for 128x32
+  display.clearDisplay();
+  display.setTextColor(SSD1306_WHITE, SSD1306_BLACK);
+//  display.setTextWrap(false);
 }
 
 void connect_callback(uint16_t conn_handle) {
@@ -163,14 +178,33 @@ void update_notify_callback(BLEClientCharacteristic* chr, uint8_t* data, uint16_
   Serial.print("AttributeID: "); Serial.println(data[1]);
   Serial.print("Truncated:   "); Serial.println(data[2]);
 
-  // clear the buffer before copying in a new value
-  memset(buffer, 0, sizeof(buffer));
+  // only deal with track information, for now
+  // TODO: handle truncated data
+  if (data[0] == AMS_ENTITY_ID_TRACK) {
+    switch (data[1]) {
+      case AMS_TRACK_ATTRIBUTE_ID_ARTIST:
+        // clear the artist buffer before copying in a new value
+        memset(artist, 0, sizeof(artist));
+        // leave out the leading IDs and flags, and copy the string payload to the buffer
+        memcpy(artist, data + 3, len - 3);
+        Serial.println(artist);
+        break;
 
-  // copy the string payload to the buffer
-  memcpy(buffer, data + 3, len - 3);
-  Serial.println(buffer);
+      case AMS_TRACK_ATTRIBUTE_ID_TITLE:
+        // clear the title buffer before copying in a new value
+        memset(title, 0, sizeof(title));
+        // leave out the leading IDs and flags, and copy the string payload to the buffer
+        memcpy(title, data + 3, len - 3);
+        Serial.println(title);
+        break;
 
+      default:
+        Serial.print("Unhandled attribute: "); Serial.println(data[1]);
+        break;
+    }
+  }
 }
+
 /*
   When the list of commands supported by the media player changes, the MS generates a
   notification on the Remote Command characteristic containing a list of the currently
@@ -219,6 +253,12 @@ void loop() {
     Serial.print("Sending command: "); Serial.println(readByte);
     remoteCmdChrt.write8_resp(readByte);
   }
+
+  display.setCursor(0, 5);
+  display.setTextSize(1);
+  display.println(artist);
+  display.println(title);
+  display.display();
 }
 
 // https://blog.moddable.com/blog/ams-client/
