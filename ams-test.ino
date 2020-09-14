@@ -22,7 +22,7 @@ Adafruit_SSD1306 display = Adafruit_SSD1306(128, 32, &Wire);
 char artist[128];
 char title[128];
 
-//int  x, minX;
+int  x, minX;
 
 enum {
   AMS_ENTITY_ID_PLAYER, // app name, playback data, volume
@@ -83,11 +83,11 @@ void setup() {
   Bluefruit.Advertising.setFastTimeout(30);      // number of seconds in fast mode
   Bluefruit.Advertising.start(0);                // 0 = Don't stop advertising after n seconds
 
-  // initialize the display, and configure for white on black text
+  // initialize the display, and configure for white on black text, and don't wrap text to the next line
   display.begin(SSD1306_SWITCHCAPVCC, 0x3C); // Address 0x3C for 128x32
   display.clearDisplay();
   display.setTextColor(SSD1306_WHITE, SSD1306_BLACK);
-//  display.setTextWrap(false);
+  display.setTextWrap(false);
 }
 
 void connect_callback(uint16_t conn_handle) {
@@ -181,6 +181,7 @@ void update_notify_callback(BLEClientCharacteristic* chr, uint8_t* data, uint16_
   // only deal with track information, for now
   // TODO: handle truncated data
   if (data[0] == AMS_ENTITY_ID_TRACK) {
+    display.clearDisplay();
     switch (data[1]) {
       case AMS_TRACK_ATTRIBUTE_ID_ARTIST:
         // clear the artist buffer before copying in a new value
@@ -196,6 +197,8 @@ void update_notify_callback(BLEClientCharacteristic* chr, uint8_t* data, uint16_
         // leave out the leading IDs and flags, and copy the string payload to the buffer
         memcpy(title, data + 3, len - 3);
         Serial.println(title);
+        x = display.width();
+        minX = -12 * strlen(title);
         break;
 
       default:
@@ -254,15 +257,23 @@ void loop() {
     remoteCmdChrt.write8_resp(readByte);
   }
 
-  display.setCursor(0, 5);
+  display.setCursor(0, 0);
   display.setTextSize(1);
   display.println(artist);
-  display.println(title);
+
+  // TODO: only scroll title if it exceeds 10 characters
+  display.setTextSize(2);
+  display.setCursor(x, 10);
+  display.print(title);
+  x -= 2;
+  if (x < minX) x = display.width();
+  //  if (--x < minX) x = display.width();
   display.display();
 }
 
 // https://blog.moddable.com/blog/ams-client/
 // https://devzone.nordicsemi.com/f/nordic-q-a/42230/apple-media-service
 // https://developer.apple.com/library/archive/documentation/CoreBluetooth/Reference/AppleMediaService_Reference/Specification/Specification.html
+// https://www.youtube.com/watch?v=sTYPuDMPva8
 //
 // * There are important differences between write and write_resp
