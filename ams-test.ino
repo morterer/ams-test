@@ -4,6 +4,10 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 
+#define BUTTON_A    31
+#define BUTTON_B    30
+#define BUTTON_C    27
+
 // Apple Media Service UUID: 89D3502B-0F36-433A-8EF4-C502AD55F8DC
 // Remote Command UUID:      9B3C81D8-57B1-4A8A-B8DF-0E56F7CA51C2 (writeable, notifiable)
 // Entity Update UUID:       2F7CABCE-808D-411F-9A0C-BB92BA96C102 (writeable with response, notifiable)
@@ -19,10 +23,15 @@ BLEClientCharacteristic entityUpdateChrt(BLEAMS_UUID_CHR_ENTITY_UPDATE);
 
 Adafruit_SSD1306 display = Adafruit_SSD1306(128, 32, &Wire);
 
+// buffers for artist and song title information
 char artist[128];
 char title[128];
 
+// used for scrolling title information on OLED screen
 int  x, minX;
+
+// track which buttons have been pressed on the OLED featherwing
+uint32_t presedButtons;
 
 enum {
   AMS_ENTITY_ID_PLAYER, // app name, playback data, volume
@@ -88,6 +97,11 @@ void setup() {
   display.clearDisplay();
   display.setTextColor(SSD1306_WHITE, SSD1306_BLACK);
   display.setTextWrap(false);
+
+  // Button configured
+  pinMode(BUTTON_A, INPUT_PULLUP);
+  pinMode(BUTTON_B, INPUT_PULLUP);
+  pinMode(BUTTON_C, INPUT_PULLUP);
 }
 
 void connect_callback(uint16_t conn_handle) {
@@ -269,6 +283,85 @@ void loop() {
   if (x < minX) x = display.width();
   //  if (--x < minX) x = display.width();
   display.display();
+
+  // Check buttons
+  presedButtons = readPressedButtons();
+
+  if ( presedButtons & bit(BUTTON_A) )
+  {
+    Serial.println("Toggle Play/Pause");
+    remoteCmdChrt.write8_resp(2);
+  }
+  if ( presedButtons & bit(BUTTON_B) )
+  {
+    Serial.println("B");
+  }
+  if ( presedButtons & bit(BUTTON_C) )
+  {
+    Serial.println("Next Track");
+    remoteCmdChrt.write8_resp(3);
+  }
+}
+
+
+/**
+   copied from Adafruit ancs_oled example
+
+
+   Check if button A,B,C state are pressed, include some software
+   debouncing.
+
+   Note: Only set bit when Button is state change from
+   idle -> pressed. Press and hold only report 1 time, release
+   won't report as well
+
+   @return Bitmask of pressed buttons e.g If BUTTON_A is pressed
+   bit 31 will be set.
+*/
+uint32_t readPressedButtons(void)
+{
+  // must be exponent of 2
+  enum { MAX_CHECKS = 8, SAMPLE_TIME = 10 };
+
+  /* Array that maintains bounce status/, which is sampled
+     10 ms each. Debounced state is regconized if all the values
+     of a button has the same value (bit set or clear)
+  */
+  static uint32_t lastReadTime = 0;
+  static uint32_t states[MAX_CHECKS] = { 0 };
+  static uint32_t index = 0;
+
+  // Last Debounced state, used to detect changed
+  static uint32_t lastDebounced = 0;
+
+  // Too soon, nothing to do
+  if (millis() - lastReadTime < SAMPLE_TIME ) return 0;
+
+  lastReadTime = millis();
+
+  // Take current read and masked with BUTTONs
+  // Note: Bitwise inverted since buttons are active (pressed) LOW
+  uint32_t debounced = ~(*portInputRegister( digitalPinToPort(0) ));
+  debounced &= (bit(BUTTON_A) | bit(BUTTON_B) | bit(BUTTON_C));
+
+  // Copy current state into array
+  states[ (index & (MAX_CHECKS - 1)) ] = debounced;
+  index++;
+
+  // Bitwise And all the state in the array together to get the result
+  // This means pin must stay at least MAX_CHECKS time to be realized as changed
+  for (int i = 0; i < MAX_CHECKS; i++)
+  {
+    debounced &= states[i];
+  }
+
+  // result is button changed and current debounced is set
+  // Mean button is pressed (idle previously)
+  uint32_t result = (debounced ^ lastDebounced) & debounced;
+
+  lastDebounced = debounced;
+
+  return result;
 }
 
 // https://blog.moddable.com/blog/ams-client/
